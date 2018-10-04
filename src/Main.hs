@@ -15,14 +15,47 @@ playerboard = replicate 10 (replicate 10 0)
 aiboard = replicate 10 (replicate 10 0)
 
 main :: IO ()
-main = do
-    T.putStrLn $ tabl EnvAscii hdecor vdecor aligns board
+main = 
+    do printboard testBoard False -- change me :) 
+
+
+
+
+
+---------------------------- BOARD FORMATTING STUFF ------------------------------
+
+-- Displays a formatted board to the user. Only displays unhit ships if it is the user's own board. 
+printboard :: [[Int]] -> Bool -> IO ()
+printboard board ownBoard =
+    do
+    T.putStrLn $ tabl EnvAscii hdecor vdecor aligns formattedboard
     where
         hdecor = DecorAll
         vdecor = DecorAll
         aligns = []
-        board = showboard [[1]]
+        formattedboard = boardtotext board ownBoard
 
+----------  HELPER METHODS ------------
+
+-- Given a 2D array of integers representing a board, convert to a 2D array of text characters 
+boardtotext :: [[Int]] -> Bool -> [[T.Text]]
 firstrow = (" ":[T.singleton a | a <- ['A'..'J']]) 
-showboard :: [[Int]] -> [[T.Text]]
-showboard board = firstrow:[(T.pack (show i)):(replicate 10 " ") | i <- [1..10]]
+boardtotext board ownBoard = firstrow :
+                              [(intToText i):(rowToSymbol (board !! (i - 1)) ownBoard) | i <- [1..10]]
+
+-- Convert a row of integers to a row of corresponding text characters
+rowToSymbol :: [Int] -> Bool -> [T.Text]
+rowToSymbol row ownBoard = map (\ i -> getboardsymbol i ownBoard) row
+
+-- Convert an integer representing a square state to a symbol to show to the user 
+-- Only show unhit ships if ownBoard is True
+getboardsymbol :: Int -> Bool -> T.Text
+getboardsymbol i ownBoard
+    | i == 0    = " "
+    | i == 1    = "✕"
+    | i == 2    = if ownBoard then "☆" else "✕"   
+    | i == 3    = "★"
+
+-- Convert int to T.Text object 
+intToText :: Int -> T.Text
+intToText i = T.pack (show i)
