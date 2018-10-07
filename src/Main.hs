@@ -16,10 +16,13 @@ aiboard = replicate 10 (replicate 10 0)
 
 main :: IO ()
 main = 
-    do printboard testBoard False -- change me :) 
+    do printboard playerboard False -- change me :) 
 
 
-
+-- Update square (x,y) on the board to newval
+updateboardsquare :: [[Int]] -> (Int, Int) -> Int -> [[Int]]
+updateboardsquare board (x, y) newval = [[if i == x && j == y then newval else ((board !! j) !! i) | j <- [0..9]] | 
+    i <- [0..9]]
 
 
 ---------------------------- BOARD FORMATTING STUFF ------------------------------
