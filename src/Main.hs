@@ -11,8 +11,8 @@ import qualified Data.Text.IO as T
 -- 1 means a miss 
 -- 2 means an unhit ship 
 -- 3 means a hit ship 
-playerboard = replicate 10 (replicate 10 0)
-aiboard = replicate 10 (replicate 10 0)
+-- playerboard = replicate 10 (replicate 10 0)
+-- aiboard = replicate 10 (replicate 10 0)
 
 validLetters = ['A' .. 'J']
 validNumbers = ['0' .. '9']
@@ -39,8 +39,64 @@ main =
         putStrLn("Welcome to Battleship! Let's get started...")
         putStrLn("First we'll get your board setup.")
         putStrLn("When inputting coordinates, please use the form A1, J9, etc.")
-        setupBoard <- setup
-        printboard setupBoard True
+        playerboard <- setup 
+        printboard playerboard True
+        let aiboard = getAiBoard
+        play playerboard aiboard True 
+
+-- play :: [[Int]] -> [[Int]] -> IO 
+play playerboard aiboard playerturn =
+    do
+        if playerturn 
+            then do 
+                printboard aiboard False
+                playertarget <- getTarget aiboard
+                newaiboard <- hitTarget aiboard playertarget
+                if False -- TODO check endgame
+                    then do 
+                        putStrLn("Congrats, you win!!")
+                else do
+                    play playerboard newaiboard False -- TODO need AI to take its turn
+        else do
+            putStrLn("This is a placeholder for the AI's turn") -- TODO
+            putStrLn("Press a key to continue")
+            _ <- getLine
+            play playerboard aiboard True
+
+
+getTarget :: [[Int]] -> IO (Int, Int)
+getTarget aiboard = 
+    do
+        putStrLn("Please input your target")
+        target <- getLine
+        if (isValidCoordinate target)
+            then do 
+                let coordinate = createCoordinate target
+                if (validtargetSquare aiboard coordinate) 
+                    then return coordinate 
+                    else do 
+                        putStrLn("You have already hit this coordinate. Please try again")
+                        getTarget aiboard
+        else do
+            putStrLn("Invalid coordinate. Please try again")
+            getTarget aiboard
+
+hitTarget :: [[Int]] -> (Int, Int) -> IO [[Int]]
+hitTarget board target = 
+    do 
+        if shipAtSquare board target 
+            then do 
+                putStrLn("It's a HIT!")
+                return (updateBoardSquare board target 3)
+            else do
+                putStrLn("Miss...")
+                return (updateBoardSquare board target 1)
+
+validtargetSquare :: [[Int]] -> (Int, Int) -> Bool
+validtargetSquare aiboard coordinate = getValueOfCoordinate aiboard coordinate == 0 || getValueOfCoordinate aiboard coordinate == 2
+
+shipAtSquare :: [[Int]] -> (Int, Int) -> Bool
+shipAtSquare aiboard coordinate = getValueOfCoordinate aiboard coordinate == 2
 
 ---------------------------- BOARD SETUP ------------------------------
 
@@ -48,7 +104,7 @@ main =
 setup :: IO [[Int]]
 setup = 
     do
-        board1 <- placeShip 5 "Carrier" playerboard
+        board1 <- placeShip 5 "Carrier" (replicate 10 (replicate 10 0))
         printboard board1 True
         board2 <- placeShip 4 "Battleship" board1
         printboard board2 True
@@ -170,6 +226,21 @@ toUpper x
 charToNum :: Char -> Int
 charToNum c = (fromEnum c) - (fromEnum '0')
 
+---------------------------- AI BOARD --------------------------------------------
+
+board1 = [[0,2,0,0,0,0,0,0,0,0],
+          [0,2,0,0,0,0,0,0,0,0],
+          [0,2,0,0,0,0,0,0,0,0],
+          [0,0,0,0,2,2,2,0,0,0],
+          [0,0,0,0,0,0,0,0,0,0],
+          [0,0,2,2,2,2,0,0,0,0],
+          [0,0,0,0,0,0,0,0,0,0],
+          [0,0,0,0,2,2,2,2,2,0],
+          [0,2,0,0,0,0,0,0,0,0],
+          [0,2,0,0,0,0,0,0,0,0]]
+
+getAiBoard = board1 -- TODO
+
 ---------------------------- BOARD FORMATTING STUFF ------------------------------
 
 -- Displays a formatted board to the user. Only displays unhit ships if it is the user's own board. 
@@ -201,7 +272,7 @@ getboardsymbol :: Int -> Bool -> T.Text
 getboardsymbol i ownBoard
     | i == 0    = " "
     | i == 1    = "✕"
-    | i == 2    = if ownBoard then "☆" else "✕"   
+    | i == 2    = if ownBoard then "☆" else " "   
     | i == 3    = "★"
 
 -- Convert int to T.Text object 
