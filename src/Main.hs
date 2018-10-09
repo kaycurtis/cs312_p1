@@ -44,7 +44,7 @@ main =
         let aiboard = getAiBoard
         play playerboard aiboard True 
 
--- play :: [[Int]] -> [[Int]] -> IO 
+play :: [[Int]] -> [[Int]] -> Bool -> IO ()
 play playerboard aiboard playerturn =
     do
         if playerturn 
@@ -52,7 +52,7 @@ play playerboard aiboard playerturn =
                 printboard aiboard False
                 playertarget <- getTarget aiboard
                 newaiboard <- hitTarget aiboard playertarget
-                if False -- TODO check endgame
+                if (allShipsHit newaiboard)
                     then do 
                         putStrLn("Congrats, you win!!")
                 else do
@@ -63,7 +63,7 @@ play playerboard aiboard playerturn =
             _ <- getLine
             play playerboard aiboard True
 
-
+-- Guides the player through selecting a valid target square for their turn.
 getTarget :: [[Int]] -> IO (Int, Int)
 getTarget aiboard = 
     do
@@ -81,10 +81,15 @@ getTarget aiboard =
             putStrLn("Invalid coordinate. Please try again")
             getTarget aiboard
 
+-- Updates the given board to reflect changes necessary from the player
+-- selecting the coordinate target.
+-- if the target is an unhit ship, changes the value to be a hit ship.
+-- if the target is an empty square, changes the value to be a miss.
+-- Precondition: the given target returns true in validTargetSquare
 hitTarget :: [[Int]] -> (Int, Int) -> IO [[Int]]
 hitTarget board target = 
     do 
-        if shipAtSquare board target 
+        if unhitShipAtSquare board target 
             then do 
                 putStrLn("It's a HIT!")
                 return (updateBoardSquare board target 3)
@@ -92,11 +97,20 @@ hitTarget board target =
                 putStrLn("Miss...")
                 return (updateBoardSquare board target 1)
 
+-- Returns true if all the ships on the given board are hit, else false.
+allShipsHit :: [[Int]] -> Bool
+allShipsHit board = 
+    (foldr (\x count -> length (filter (==3) x) + count) 0 board) == 17
+
+-- Checks whether the given coordinates are a valid target for a player's turn.
+-- That is, returns true if the coordinate is empty or an unhit ship, and returns
+-- false if the coordinate has already been hit (i.e. is a hit ship or a miss)
 validtargetSquare :: [[Int]] -> (Int, Int) -> Bool
 validtargetSquare aiboard coordinate = getValueOfCoordinate aiboard coordinate == 0 || getValueOfCoordinate aiboard coordinate == 2
 
-shipAtSquare :: [[Int]] -> (Int, Int) -> Bool
-shipAtSquare aiboard coordinate = getValueOfCoordinate aiboard coordinate == 2
+-- Checks whether the given coordinate contains an unhit ship
+unhitShipAtSquare :: [[Int]] -> (Int, Int) -> Bool
+unhitShipAtSquare aiboard coordinate = getValueOfCoordinate aiboard coordinate == 2
 
 ---------------------------- BOARD SETUP ------------------------------
 
