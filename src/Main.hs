@@ -1,5 +1,4 @@
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE ScopedTypeVariables #-}
 
 module Main where
 
@@ -288,7 +287,7 @@ placeOneShip :: Int -> [[Int]] -> IO [[Int]]
 placeOneShip size board =
     do 
         generator <- newStdGen
-        let lst :: [Int] = take 2 $ (randomRs (0, 9) generator) 
+        let lst = take 2 $ (randomRs (0, 9) generator) 
         let start = (lst !! 0, lst !! 1)
         let options = getValidShipPlacements start size board
         let optionsLength = length options
