@@ -1,10 +1,12 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module Main where
 
 import Text.Tabl
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
+import System.Random
 
 -- Boards are 10x10 2D arrays with integers in the range [0,3], where:
 -- 0 means the square is empty and has not been hit
@@ -41,7 +43,7 @@ main =
         putStrLn("When inputting coordinates, please use the form A1, J9, etc.")
         playerboard <- setup 
         printboard playerboard True
-        let aiboard = getAiBoard
+        aiboard <- getAiBoard
         play playerboard aiboard True 
 
 play :: [[Int]] -> [[Int]] -> Bool -> IO ()
@@ -199,10 +201,12 @@ isValidShipPlacement (sRow, sCol) (eRow, eCol) size board
     | sRow ==  eRow = checkDifference sCol eCol (size - 1) && isRowFreeBetween sCol eCol board sRow
     | otherwise = False
 
+-- Return a list of valid end placements, given a start placement
 getValidShipPlacements :: (Int, Int) -> Int -> [[Int]] -> [(Int, Int)]
 getValidShipPlacements start size board = 
     filter ( \ end -> isValidShipPlacement start end size board) (getValidCoordinatesXAwayFromStart start size)
 
+-- Get a list of coordinates which are <size> away from the start coordinate, which are on the board
 getValidCoordinatesXAwayFromStart :: (Int, Int) -> Int -> [(Int, Int)]
 getValidCoordinatesXAwayFromStart (sRow, sCol) size =
     let offset = size - 1
@@ -254,18 +258,47 @@ charToNum c = (fromEnum c) - (fromEnum '0')
 
 ---------------------------- AI BOARD --------------------------------------------
 
-board1 = [[0,2,0,0,0,0,0,0,0,0],
-          [0,2,0,0,0,0,0,0,0,0],
-          [0,2,0,0,0,0,0,0,0,0],
-          [0,0,0,0,2,2,2,0,0,0],
-          [0,0,0,0,0,0,0,0,0,0],
-          [0,0,2,2,2,2,0,0,0,0],
-          [0,0,0,0,0,0,0,0,0,0],
-          [0,0,0,0,2,2,2,2,2,0],
-          [0,2,0,0,0,0,0,0,0,0],
-          [0,2,0,0,0,0,0,0,0,0]]
+-- board1 = [[0,2,0,0,0,0,0,0,0,0],
+--           [0,2,0,0,0,0,0,0,0,0],
+--           [0,2,0,0,0,0,0,0,0,0],
+--           [0,0,0,0,2,2,2,0,0,0],
+--           [0,0,0,0,0,0,0,0,0,0],
+--           [0,0,2,2,2,2,0,0,0,0],
+--           [0,0,0,0,0,0,0,0,0,0],
+--           [0,0,0,0,2,2,2,2,2,0],
+--           [0,2,0,0,0,0,0,0,0,0],
+--           [0,2,0,0,0,0,0,0,0,0]]
 
-getAiBoard = board1 -- TODO
+-- Randomly generate a board for the AI
+getAiBoard :: IO [[Int]]
+getAiBoard = 
+    do 
+        let board = replicate 10 (replicate 10 0)
+        board <- placeOneShip 5 board
+        board <- placeOneShip 4 board 
+        board <- placeOneShip 3 board 
+        board <- placeOneShip 3 board 
+        board <- placeOneShip 2 board 
+        putStrLn "Printing the value of the AI board for debugging purposes, delete me!"
+        printboard board True -- TEMP, for DEBUGGING ONLY
+        return board
+
+-- Randomly place one ship of size size onto the board
+placeOneShip :: Int -> [[Int]] -> IO [[Int]]
+placeOneShip size board =
+    do 
+        generator <- newStdGen
+        let lst :: [Int] = take 2 $ (randomRs (0, 9) generator) 
+        let start = (lst !! 0, lst !! 1)
+        let options = getValidShipPlacements start size board
+        let optionsLength = length options
+        if optionsLength == 0 
+            then do 
+                placeOneShip size board
+        else do
+            generator <- newStdGen
+            let (index, g) = randomR (0, optionsLength - 1) generator
+            return (updateBoardWithShip start (options !! index) board size)
 
 ---------------------------- BOARD FORMATTING STUFF ------------------------------
 
