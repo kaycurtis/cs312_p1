@@ -188,6 +188,9 @@ isValidCoordinate :: [Char] -> Bool
 isValidCoordinate [letter, num] = ((toUpper letter) `elem` validLetters) && (num `elem` validNumbers)
 isValidCoordinate lst = False
 
+isValidCoordinateNum :: (Int, Int) -> Bool
+isValidCoordinateNum (row, col) = row >= 0 && row <= 9 && col >= 0 && col <= 9
+
 -- Checks if the given start and end coordinates are correct for a ship occupying
 -- size spaces AND if the spaces between start and end are free.
 isValidShipPlacement :: (Int, Int) -> (Int, Int) -> Int -> [[Int]] -> Bool
@@ -195,6 +198,15 @@ isValidShipPlacement (sRow, sCol) (eRow, eCol) size board
     | sCol == eCol = checkDifference sRow eRow (size - 1) && isColFreeBetween sRow eRow board sCol
     | sRow ==  eRow = checkDifference sCol eCol (size - 1) && isRowFreeBetween sCol eCol board sRow
     | otherwise = False
+
+getValidShipPlacements :: (Int, Int) -> Int -> [[Int]] -> [(Int, Int)]
+getValidShipPlacements start size board = 
+    filter ( \ end -> isValidShipPlacement start end size board) (getValidCoordinatesXAwayFromStart start size)
+
+getValidCoordinatesXAwayFromStart :: (Int, Int) -> Int -> [(Int, Int)]
+getValidCoordinatesXAwayFromStart (sRow, sCol) size =
+    let offset = size - 1
+    in filter (\ end -> isValidCoordinateNum end) [(sRow, sCol + offset), (sRow, sCol - offset), (sRow + offset, sCol), (sRow - offset, sCol)]
 
 -- Checks if the spaces between (and including) columns start and end in the given row
 -- are free (i.e. not occupied by a ship).
