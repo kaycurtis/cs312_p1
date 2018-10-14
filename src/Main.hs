@@ -5,6 +5,7 @@ module Main where
 import Text.Tabl
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
+import qualified Data.List
 import System.Random
 
 -- Boards are 10x10 2D arrays with integers in the range [0,3], where:
@@ -57,13 +58,23 @@ play playerboard aiboard playerturn =
                     then do 
                         putStrLn("Congrats, you win!!")
                 else do
-                    play playerboard newaiboard False -- TODO need AI to take its turn
+                    play playerboard newaiboard False
         else do
-            putStrLn("This is a placeholder for the AI's turn") -- TODO
-            putStrLn("Press a key to continue")
+            putStrLn("Press a key to have the AI take its turn")
             _ <- getLine
-            play playerboard aiboard True
-
+            
+            aitarget <- (getAITarget playerboard 0)
+            newplayerboard <- hitTarget playerboard aitarget
+            
+            putStrLn("Here's your board after the AI's turn:")
+            printboard newplayerboard True
+            
+            if (allShipsHit newplayerboard)
+                then do
+                    putStrLn("Sorry, you lose!")
+            else do
+                play newplayerboard aiboard True
+                
 -- Guides the player through selecting a valid target square for their turn.
 getTarget :: [[Int]] -> IO (Int, Int)
 getTarget aiboard = 
@@ -112,6 +123,35 @@ validtargetSquare aiboard coordinate = getValueOfCoordinate aiboard coordinate =
 -- Checks whether the given coordinate contains an unhit ship
 unhitShipAtSquare :: [[Int]] -> (Int, Int) -> Bool
 unhitShipAtSquare aiboard coordinate = getValueOfCoordinate aiboard coordinate == 2
+
+------------------------------ AI STUFF -------------------------------
+
+-- Gets the target selected by the AI for its turn, given a board
+getAITarget :: [[Int]] -> Int -> IO (Int, Int)
+getAITarget playerboard row
+    | row > 9 = getRandomTarget playerboard
+    | otherwise =
+        do
+            let hitIndices = Data.List.elemIndices 3 (playerboard !! row)
+            let targets = getTargetFromHits playerboard hitIndices row
+            next <- (getAITarget playerboard (row+1))
+            
+            return (if (length targets > 0) then (head targets) else next)
+
+-- Gets a list of suitable targets given a list of known hit locations
+getTargetFromHits :: [[Int]] -> [Int] -> Int -> [(Int, Int)]
+getTargetFromHits playerboard hitIndices row
+    | length hitIndices == 0 = []
+    | otherwise =  [(i, j) | i <- [row-1, row, row+1], col <- hitIndices, j <- [col-1, col, col+1], isValidCoordinateNum (i, j),
+                            ((playerboard !! i) !! j) /= 1 && ((playerboard !! i) !! j) /= 3]
+            
+-- Gets a random valid target (i.e. not already a hit/miss location)
+getRandomTarget :: [[Int]] -> IO (Int, Int)
+getRandomTarget playerboard = 
+    do
+        g <- newStdGen
+        return (head [(i, j) | i <- randomRs (0, 9) g, j <- randomRs (0, 9) g,
+                                ((playerboard !! i) !! j) /= 1, ((playerboard !! i) !! j) /= 3])
 
 ---------------------------- BOARD SETUP ------------------------------
 
@@ -329,7 +369,7 @@ rowToSymbol row ownBoard = map (\ i -> getboardsymbol i ownBoard) row
 getboardsymbol :: Int -> Bool -> T.Text
 getboardsymbol i ownBoard
     | i == 0    = " "
-    | i == 1    = "✕"
+    | i == 1    = "X"
     | i == 2    = if ownBoard then "☆" else " "   
     | i == 3    = "★"
 
