@@ -80,6 +80,8 @@ play playerboard aiboard playerturn =
             
             aitarget <- (getAITarget playerboard 0)
             newplayerboard <- hitTarget playerboard aitarget
+            
+            putStrLn("Here's the board the AI sees after it takes its turn:")
             printboard newplayerboard True
             
             if (allShipsHit newplayerboard)
