@@ -16,6 +16,15 @@ import System.Random
 -- playerboard = replicate 10 (replicate 10 0)
 -- aiboard = replicate 10 (replicate 10 0)
 
+empty_square = 0
+miss_square = 1
+hit_square = 3
+unhit_carrier_square = 11
+unhit_battleship_square = 12
+unhit_cruiser_square = 13
+unhit_submarine_square = 14
+unhit_destroyer_square = 15
+
 validLetters = ['A' .. 'J']
 validNumbers = ['0' .. '9']
 
@@ -104,10 +113,22 @@ hitTarget board target =
         if unhitShipAtSquare board target 
             then do 
                 putStrLn("It's a HIT!")
-                return (updateBoardSquare board target 3)
+                let newboard = updateBoardSquare board target 3
+                let shipType = (board !! (fst target)) !! (snd target) 
+                if (newShipSunk newboard shipType)
+                    then do
+                        putStrLn(getShipNameFromNum shipType ++ " has been SUNK!")
+                        return (newboard)
+                    else
+                        return (newboard)
+                
             else do
                 putStrLn("Miss...")
                 return (updateBoardSquare board target 1)
+                
+-- Returns True if the ship the board contains no unhit squares for the shipType given
+newShipSunk :: [[Int]] -> Int -> Bool
+newShipSunk board shipType = (foldr (\x count -> length (filter (==shipType) x) + count) 0 board) == 0
 
 -- Returns true if all the ships on the given board are hit, else false.
 allShipsHit :: [[Int]] -> Bool
@@ -118,11 +139,12 @@ allShipsHit board =
 -- That is, returns true if the coordinate is empty or an unhit ship, and returns
 -- false if the coordinate has already been hit (i.e. is a hit ship or a miss)
 validtargetSquare :: [[Int]] -> (Int, Int) -> Bool
-validtargetSquare aiboard coordinate = getValueOfCoordinate aiboard coordinate == 0 || getValueOfCoordinate aiboard coordinate == 2
+validtargetSquare aiboard coordinate = getValueOfCoordinate aiboard coordinate /= hit_square && getValueOfCoordinate aiboard coordinate /= miss_square
 
 -- Checks whether the given coordinate contains an unhit ship
 unhitShipAtSquare :: [[Int]] -> (Int, Int) -> Bool
-unhitShipAtSquare aiboard coordinate = getValueOfCoordinate aiboard coordinate == 2
+unhitShipAtSquare aiboard coordinate = getValueOfCoordinate aiboard coordinate `elem` [unhit_battleship_square, unhit_carrier_square, unhit_cruiser_square,
+                                                                                        unhit_destroyer_square, unhit_submarine_square]
 
 ------------------------------ AI STUFF -------------------------------
 
@@ -186,7 +208,7 @@ placeShip size name board =
                         let endCoordinate = createCoordinate end
                         if (isValidShipPlacement startCoordinate endCoordinate size board)
                             then do
-                                let newBoard = updateBoardWithShip startCoordinate endCoordinate board size
+                                let newBoard = updateBoardWithShip startCoordinate endCoordinate board size name
                                 return newBoard
                             else do
                                 putStrLn("Invalid placement. Please try again, making sure your ships do not overlap and span the correct number of spaces.")
@@ -200,24 +222,24 @@ placeShip size name board =
 
 -- Updates the board between the start and end coordinates to contain a ship.
 -- Returns the new board with the ship placed.
-updateBoardWithShip :: (Int, Int) -> (Int, Int) -> [[Int]] -> Int -> [[Int]]
-updateBoardWithShip (sRow, sCol) (eRow, eCol) board size
-    | sRow == eRow = updateRowWithShip board sRow (min sCol eCol) size
-    | sCol == eCol = updateColWithShip board sCol (min sRow eRow) size
+updateBoardWithShip :: (Int, Int) -> (Int, Int) -> [[Int]] -> Int -> [Char] -> [[Int]]
+updateBoardWithShip (sRow, sCol) (eRow, eCol) board size name
+    | sRow == eRow = updateRowWithShip board sRow (min sCol eCol) size name
+    | sCol == eCol = updateColWithShip board sCol (min sRow eRow) size name
 
 -- Updates the spaces of the board in the given row to contain a ship of
 -- size num that starts at column start
-updateRowWithShip :: [[Int]] -> Int -> Int -> Int -> [[Int]]
-updateRowWithShip board row start num
+updateRowWithShip :: [[Int]] -> Int -> Int -> Int -> [Char] -> [[Int]]
+updateRowWithShip board row start num name
     | num == 0 = board
-    | otherwise = updateRowWithShip (updateBoardSquare board (row, start) 2) row (start + 1) (num - 1)
+    | otherwise = updateRowWithShip (updateBoardSquare board (row, start) (getShipNumFromName name)) row (start + 1) (num - 1) name
 
 -- Updates the spaces of the board in the given column col to contain a ship of
 -- size num that starts at row start
-updateColWithShip :: [[Int]] -> Int -> Int -> Int -> [[Int]]
-updateColWithShip board col start num
+updateColWithShip :: [[Int]] -> Int -> Int -> Int -> [Char] -> [[Int]]
+updateColWithShip board col start num name
     | num == 0 = board
-    | otherwise = updateColWithShip (updateBoardSquare board (start, col) 2) col (start + 1) (num - 1)
+    | otherwise = updateColWithShip (updateBoardSquare board (start, col) (getShipNumFromName name)) col (start + 1) (num - 1) name
 
 -- Update square (x,y) on the board to newval
 updateBoardSquare :: [[Int]] -> (Int, Int) -> Int -> [[Int]]
@@ -295,6 +317,24 @@ toUpper x
 charToNum :: Char -> Int
 charToNum c = (fromEnum c) - (fromEnum '0')
 
+-- Gets ship number (on board) from its name
+getShipNumFromName :: [Char] -> Int
+getShipNumFromName name 
+    | name == "Battleship" = unhit_battleship_square
+    | name == "Carrier" = unhit_carrier_square
+    | name == "Cruiser" = unhit_cruiser_square
+    | name == "Destroyer" = unhit_destroyer_square
+    | name == "Submarine" = unhit_submarine_square
+    
+-- Gets ship name from its number (on board)
+getShipNameFromNum :: Int -> [Char]
+getShipNameFromNum num
+    | num == unhit_battleship_square = "Battleship"
+    | num == unhit_carrier_square = "Carrier"
+    | num == unhit_cruiser_square = "Cruiser"
+    | num == unhit_destroyer_square = "Destroyer"
+    | num == unhit_submarine_square = "Submarine"
+
 ---------------------------- AI BOARD --------------------------------------------
 
 -- board1 = [[0,2,0,0,0,0,0,0,0,0],
@@ -313,18 +353,18 @@ getAiBoard :: IO [[Int]]
 getAiBoard = 
     do 
         let board = replicate 10 (replicate 10 0)
-        board <- placeOneShip 5 board
-        board <- placeOneShip 4 board 
-        board <- placeOneShip 3 board 
-        board <- placeOneShip 3 board 
-        board <- placeOneShip 2 board 
+        board <- placeOneShip 5 board "Carrier"
+        board <- placeOneShip 4 board "Battleship"
+        board <- placeOneShip 3 board "Cruiser"
+        board <- placeOneShip 3 board "Submarine"
+        board <- placeOneShip 2 board "Destroyer"
         putStrLn "Printing the value of the AI board for debugging purposes, delete me!"
         printboard board True -- TEMP, for DEBUGGING ONLY
         return board
 
 -- Randomly place one ship of size size onto the board
-placeOneShip :: Int -> [[Int]] -> IO [[Int]]
-placeOneShip size board =
+placeOneShip :: Int -> [[Int]] -> [Char] -> IO [[Int]]
+placeOneShip size board name =
     do 
         generator <- newStdGen
         let lst = take 2 $ (randomRs (0, 9) generator) 
@@ -333,11 +373,11 @@ placeOneShip size board =
         let optionsLength = length options
         if optionsLength == 0 
             then do 
-                placeOneShip size board
+                placeOneShip size board name
         else do
             generator <- newStdGen
             let (index, g) = randomR (0, optionsLength - 1) generator
-            return (updateBoardWithShip start (options !! index) board size)
+            return (updateBoardWithShip start (options !! index) board size name)
 
 ---------------------------- BOARD FORMATTING STUFF ------------------------------
 
@@ -370,7 +410,7 @@ getboardsymbol :: Int -> Bool -> T.Text
 getboardsymbol i ownBoard
     | i == 0    = " "
     | i == 1    = "X"
-    | i == 2    = if ownBoard then "☆" else " "   
+    | i `elem` [unhit_battleship_square, unhit_carrier_square, unhit_cruiser_square, unhit_destroyer_square, unhit_submarine_square] = if ownBoard then "☆" else " "   
     | i == 3    = "★"
 
 -- Convert int to T.Text object 
