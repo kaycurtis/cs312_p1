@@ -25,6 +25,12 @@ unhit_cruiser_square = 13
 unhit_submarine_square = 14
 unhit_destroyer_square = 15
 
+carrier_string = "Carrier"
+battleship_string = "Battleship"
+cruiser_string = "Cruiser"
+submarine_string = "Submarine"
+destroyer_string = "Destroyer"
+
 validLetters = ['A' .. 'J']
 validNumbers = ['0' .. '9']
 
@@ -59,10 +65,10 @@ play :: [[Int]] -> [[Int]] -> Bool -> IO ()
 play playerboard aiboard playerturn =
     do
         if playerturn 
-            then do 
-                printboard aiboard False
+            then do
                 playertarget <- getTarget aiboard
                 newaiboard <- hitTarget aiboard playertarget
+                printboard newaiboard False
                 if (allShipsHit newaiboard)
                     then do 
                         putStrLn("Congrats, you win!!")
@@ -74,8 +80,6 @@ play playerboard aiboard playerturn =
             
             aitarget <- (getAITarget playerboard 0)
             newplayerboard <- hitTarget playerboard aitarget
-            
-            putStrLn("Here's your board after the AI's turn:")
             printboard newplayerboard True
             
             if (allShipsHit newplayerboard)
@@ -181,15 +185,15 @@ getRandomTarget playerboard =
 setup :: IO [[Int]]
 setup = 
     do
-        board1 <- placeShip 5 "Carrier" (replicate 10 (replicate 10 0))
+        board1 <- placeShip 5 carrier_string (replicate 10 (replicate 10 0))
         printboard board1 True
-        board2 <- placeShip 4 "Battleship" board1
+        board2 <- placeShip 4 battleship_string board1
         printboard board2 True
-        board3 <- placeShip 3 "Cruiser" board2
+        board3 <- placeShip 3 cruiser_string board2
         printboard board3 True
-        board4 <- placeShip 3 "Submarine" board3
+        board4 <- placeShip 3 submarine_string board3
         printboard board4 True
-        placeShip 2 "Destroyer" board4
+        placeShip 2 destroyer_string board4
 
 -- Guides the player through placing the ship identified by size and name on their board.
 placeShip :: Int -> [Char] -> [[Int]] -> IO [[Int]]
@@ -320,20 +324,20 @@ charToNum c = (fromEnum c) - (fromEnum '0')
 -- Gets ship number (on board) from its name
 getShipNumFromName :: [Char] -> Int
 getShipNumFromName name 
-    | name == "Battleship" = unhit_battleship_square
-    | name == "Carrier" = unhit_carrier_square
-    | name == "Cruiser" = unhit_cruiser_square
-    | name == "Destroyer" = unhit_destroyer_square
-    | name == "Submarine" = unhit_submarine_square
+    | name == battleship_string = unhit_battleship_square
+    | name == carrier_string = unhit_carrier_square
+    | name == cruiser_string = unhit_cruiser_square
+    | name == destroyer_string = unhit_destroyer_square
+    | name == submarine_string = unhit_submarine_square
     
 -- Gets ship name from its number (on board)
 getShipNameFromNum :: Int -> [Char]
 getShipNameFromNum num
-    | num == unhit_battleship_square = "Battleship"
-    | num == unhit_carrier_square = "Carrier"
-    | num == unhit_cruiser_square = "Cruiser"
-    | num == unhit_destroyer_square = "Destroyer"
-    | num == unhit_submarine_square = "Submarine"
+    | num == unhit_battleship_square = battleship_string
+    | num == unhit_carrier_square = carrier_string
+    | num == unhit_cruiser_square = cruiser_string
+    | num == unhit_destroyer_square = destroyer_string
+    | num == unhit_submarine_square = submarine_string
 
 ---------------------------- AI BOARD --------------------------------------------
 
@@ -353,11 +357,11 @@ getAiBoard :: IO [[Int]]
 getAiBoard = 
     do 
         let board = replicate 10 (replicate 10 0)
-        board <- placeOneShip 5 board "Carrier"
-        board <- placeOneShip 4 board "Battleship"
-        board <- placeOneShip 3 board "Cruiser"
-        board <- placeOneShip 3 board "Submarine"
-        board <- placeOneShip 2 board "Destroyer"
+        board <- placeOneShip 5 board carrier_string
+        board <- placeOneShip 4 board battleship_string
+        board <- placeOneShip 3 board cruiser_string
+        board <- placeOneShip 3 board submarine_string
+        board <- placeOneShip 2 board destroyer_string
         putStrLn "Printing the value of the AI board for debugging purposes, delete me!"
         printboard board True -- TEMP, for DEBUGGING ONLY
         return board
