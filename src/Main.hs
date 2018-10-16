@@ -48,16 +48,27 @@ convertLetterCoordinateToNum letter
     | letter == 'J' = 9
     | otherwise = -1
 
+-- The main game loop. Takes a boolean indicating whether this is "debug" mode or not.
+-- If it is debug, print out the AI board at the beginning of the game.
 main :: IO ()
 main = 
     do
         putStrLn("Welcome to Battleship! Let's get started...")
         putStrLn("First we'll get your board setup.")
         putStrLn("When inputting coordinates, please use the form A1, J9, etc.")
-        playerboard <- setup 
+        playerboard <- setup
         printboard playerboard True
         aiboard <- getAiBoard
-        play playerboard aiboard True 
+        putStrLn("Would you like to see the AI board (for debugging purposes? (Input \"Y\" if so)")
+        debug <- getLine
+        if ((debug == "Yes") || (debug == "yes") || (debug == "Y") || (debug == "y"))
+            then do
+                putStrLn("Okay, here is the AI's board:")
+                printboard aiboard True
+                play playerboard aiboard True
+            else do
+                putStrLn("Not in debug mode.")
+                play playerboard aiboard True 
 
 play :: [[Int]] -> [[Int]] -> Bool -> IO ()
 play playerboard aiboard playerturn =
@@ -212,7 +223,7 @@ placeShip size name board =
                         putStrLn("Give an end coordinate that is " ++(show (size - 1))++ " spaces away vertically or horizontally from " ++start++ ".")
                         putStrLn("The valid options are: "++(show validEndCoordinates))
                         end <- getLine
-                        if (end `elem` validEndCoordinates)
+                        if ((toUpperUserCoordinate end) `elem` validEndCoordinates)
                             then do
                                 let endCoordinate = createCoordinate end
                                 let newBoard = updateBoardWithShip startCoordinate endCoordinate board size name
@@ -334,6 +345,12 @@ toUpper x
     | x `elem` validLetters = x
     | otherwise = toEnum( fromEnum x - fromEnum 'a' + fromEnum 'A')
 
+-- Converts the letter in the user input of a coordinate that is validly formatted to uppercase.
+toUpperUserCoordinate :: [Char] -> [Char]
+toUpperUserCoordinate [letter,number] =
+    [toUpper letter, number]
+toUpperUserCoordinate lst = lst
+
 -- Converts a character of a digit to an Int
 charToNum :: Char -> Int
 charToNum c = (fromEnum c) - (fromEnum '0')
@@ -379,8 +396,6 @@ getAiBoard =
         board <- placeOneShip 3 board cruiser_string
         board <- placeOneShip 3 board submarine_string
         board <- placeOneShip 2 board destroyer_string
-        putStrLn "Printing the value of the AI board for debugging purposes, delete me!"
-        printboard board True -- TEMP, for DEBUGGING ONLY
         return board
 
 -- Randomly place one ship of size size onto the board
