@@ -77,6 +77,7 @@ play playerboard aiboard playerturn =
             _ <- getLine
             
             aitarget <- (getAITarget playerboard 0)
+            putStrLn("The AI has selected the target "++(convertNumCoordinateToUserCoordinate aitarget))
             newplayerboard <- hitTarget playerboard aitarget
             
             putStrLn("Here's the board the AI sees after it takes its turn:")
