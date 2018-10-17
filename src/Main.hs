@@ -33,22 +33,6 @@ destroyer_string = "Destroyer"
 validLetters = ['A' .. 'J']
 validNumbers = ['0' .. '9']
 
--- Takes in the letter character of a coordinate, and returns the integer mapping
--- NOTE: letter must be an element of validLetters.
-convertLetterCoordinateToNum :: Char -> Int
-convertLetterCoordinateToNum letter
-    | letter == 'A' = 0
-    | letter == 'B' = 1
-    | letter == 'C' = 2
-    | letter == 'D' = 3
-    | letter == 'E' = 4
-    | letter == 'F' = 5
-    | letter == 'G' = 6
-    | letter == 'H' = 7
-    | letter == 'I' = 8
-    | letter == 'J' = 9
-    | otherwise = -1
-
 -- The main game loop. The user sets up their board, then the AI sets up
 -- their board, and then gameplay begins with the human player taking the
 -- first turn.
@@ -159,11 +143,18 @@ allShipsHit :: [[Int]] -> Bool
 allShipsHit board = 
     (foldr (\x count -> length (filter (==hit_square) x) + count) 0 board) == 17
 
+-- Returns true if the given coordinate has not yet been selected as a target to hit
+-- on the given gameboard (i.e. is not a miss or a hit square)
+isUnhitTarget :: [[Int]] -> (Int, Int) -> Bool
+isUnhitTarget board (i,j) = 
+    val /= miss_square && val /= hit_square
+    where val = getValueOfCoordinate board (i,j)
+
 -- Checks whether the given coordinate contains an unhit ship
 unhitShipAtSquare :: [[Int]] -> (Int, Int) -> Bool
 unhitShipAtSquare aiboard coordinate = getValueOfCoordinate aiboard coordinate `elem` unhitShipSquares
 
------------------------------- AI STUFF -------------------------------
+------------------------------ AI SPECIFIC FUNCTIONS -------------------------------
 
 -- Gets the target selected by the AI for its turn, given a board
 getAITarget :: [[Int]] -> Int -> IO (Int, Int)
@@ -195,14 +186,7 @@ getRandomTarget board =
         g <- newStdGen
         return (head [(i, j) | i <- randomRs (0, 9) g, j <- randomRs (0, 9) g, isUnhitTarget board (i,j)])
 
--- Returns true if the given coordinate has not yet been selected as a target to hit
--- on the given gameboard (i.e. is not a miss or a hit square)
-isUnhitTarget :: [[Int]] -> (Int, Int) -> Bool
-isUnhitTarget board (i,j) = 
-    val /= miss_square && val /= hit_square
-    where val = getValueOfCoordinate board (i,j)
-
----------------------------- PLAYER'S BOARD SETUP ------------------------------
+---------------------------- BOARD SETUP FUNCTIONS ------------------------------
 
 -- Guides the player through placing their ships on their board.
 setupPlayersBoard :: IO [[Int]]
@@ -315,12 +299,6 @@ getValidCoordinatesXAwayFromStartUserFriendly start size board =
     map convertNumCoordinateToUserCoordinate coordinates
     where coordinates = getValidShipPlacements start size board
 
--- Takes in a coordinate in the form (row,col) where row and col are Ints, and returns a board
--- coordinate in user-friendly format (e.g. (0,0) = "A0"; (0,1) = "B0" etc.)
-convertNumCoordinateToUserCoordinate :: (Int, Int) -> [Char]
-convertNumCoordinateToUserCoordinate (row, col) = 
-    [(validLetters !! col)]++(show row)
-
 -- Checks if the spaces between (and including) columns start and end in the given row
 -- are free (i.e. not occupied by a ship).
 isRowFreeBetween :: Int -> Int -> [[Int]] -> Int -> Bool
@@ -345,14 +323,12 @@ isFreeSpace board (row, col) = (getValueOfCoordinate board (row,col)) == 0
 getValueOfCoordinate :: [[Int]] -> (Int, Int) -> Int
 getValueOfCoordinate board (row,col) = (board !! row) !! col
 
--- Creates a coordinate of form (row, column), converting the letter
--- representation of a column to an Int.
-createCoordinate :: [Char] -> (Int, Int)
-createCoordinate [letter,num] = ((charToNum num), (convertLetterCoordinateToNum (toUpper letter)))
-
 -- Checks whether the absolute difference between a and b is equal to diff
 checkDifference :: (Num a, Eq a) => a -> a -> a -> Bool
 checkDifference a b diff = ((a - b) == diff) || ((b - a) == diff)
+
+
+------------------------- CONVERSION FUNCTIONS ---------------------------------------
 
 -- Converts the given character to uppercase.
 -- note: borrowed and modified from assignment 2.
@@ -366,6 +342,17 @@ toUpperUserCoordinate :: [Char] -> [Char]
 toUpperUserCoordinate [letter,number] =
     [toUpper letter, number]
 toUpperUserCoordinate lst = lst
+
+-- Takes in a coordinate in the form (row,col) where row and col are Ints, and returns a board
+-- coordinate in user-friendly format (e.g. (0,0) = "A0"; (0,1) = "B0" etc.)
+convertNumCoordinateToUserCoordinate :: (Int, Int) -> [Char]
+convertNumCoordinateToUserCoordinate (row, col) = 
+    [(validLetters !! col)]++(show row)
+
+-- Creates a coordinate of form (row, column), converting the letter
+-- representation of a column to an Int.
+createCoordinate :: [Char] -> (Int, Int)
+createCoordinate [letter,num] = ((charToNum num), (convertLetterCoordinateToNum (toUpper letter)))
 
 -- Converts a character of a digit to an Int
 charToNum :: Char -> Int
@@ -388,6 +375,22 @@ getShipNameFromNum num
     | num == unhit_cruiser_square = cruiser_string
     | num == unhit_destroyer_square = destroyer_string
     | num == unhit_submarine_square = submarine_string
+
+-- Takes in the letter character of a coordinate, and returns the integer mapping
+-- NOTE: letter must be an element of validLetters.
+convertLetterCoordinateToNum :: Char -> Int
+convertLetterCoordinateToNum letter
+    | letter == 'A' = 0
+    | letter == 'B' = 1
+    | letter == 'C' = 2
+    | letter == 'D' = 3
+    | letter == 'E' = 4
+    | letter == 'F' = 5
+    | letter == 'G' = 6
+    | letter == 'H' = 7
+    | letter == 'I' = 8
+    | letter == 'J' = 9
+    | otherwise = -1
 
 ---------------------------- AI BOARD --------------------------------------------
 
