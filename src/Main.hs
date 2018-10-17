@@ -66,7 +66,9 @@ play playerboard aiboard playerturn =
         if playerturn 
             then do
                 playertarget <- getTarget aiboard
+                promptToContinue("Taking aim... Press a key to continue");
                 newaiboard <- hitTarget aiboard playertarget
+                promptToContinue("Press a key to see the AI's board")
                 printboard newaiboard False
                 if (allShipsHit newaiboard)
                     then do 
@@ -74,14 +76,11 @@ play playerboard aiboard playerturn =
                 else do
                     play playerboard newaiboard False
         else do
-            putStrLn("Press a key to have the AI take its turn")
-            _ <- getLine
-            
+            promptToContinue("Press a key to have the AI take its turn")
             aitarget <- (getAITarget playerboard 0)
-            putStrLn("The AI has selected the target "++(convertNumCoordinateToUserCoordinate aitarget))
+            promptToContinue("The AI has selected the target "++(convertNumCoordinateToUserCoordinate aitarget)++". Press a key to continue.")
             newplayerboard <- hitTarget playerboard aitarget
-            
-            putStrLn("Here's the board the AI sees after it takes its turn:")
+            promptToContinue("Press a key to see your board after the AI's turn")
             printboard newplayerboard True
             
             if (allShipsHit newplayerboard)
@@ -89,6 +88,14 @@ play playerboard aiboard playerturn =
                     putStrLn("Sorry, you lose!")
             else do
                 play newplayerboard aiboard True
+
+-- Print the given text and then require the player to press a key
+promptToContinue :: [Char] -> IO String
+promptToContinue str =
+    do
+        putStrLn(str)
+        x <- getLine
+        return x
                 
 -- Guides the player through selecting a valid target square for their turn.
 -- If the user inputs an invalid coordinate or selects a coordinate they have
@@ -131,7 +138,7 @@ hitTarget board target =
                         return (newboard)
                 
             else do
-                putStrLn("Miss...")
+                putStrLn("It's a miss...")
                 return (updateBoardSquare board target 1)
                 
 -- Returns True if the board contains no unhit squares for the shipType given, otherwise False.
