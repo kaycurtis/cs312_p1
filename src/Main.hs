@@ -8,12 +8,11 @@ import qualified Data.Text.IO as T
 import qualified Data.List
 import System.Random
 
--- Boards are 10x10 2D arrays with integers in the range [0,3], where:
+-- Boards are 10x10 2D arrays with integers where:
 -- 0 means the square is empty and has not been hit
 -- 1 means a miss 
 -- 11- 15 means an unhit ship
 -- 3 means a hit ship 
-
 empty_square = 0
 miss_square = 1
 hit_square = 3
@@ -22,6 +21,8 @@ unhit_battleship_square = 12
 unhit_cruiser_square = 13
 unhit_submarine_square = 14
 unhit_destroyer_square = 15
+unhitShipSquares = [unhit_carrier_square, unhit_battleship_square, unhit_cruiser_square,
+    unhit_submarine_square, unhit_destroyer_square]
 
 carrier_string = "Carrier"
 battleship_string = "Battleship"
@@ -48,15 +49,16 @@ convertLetterCoordinateToNum letter
     | letter == 'J' = 9
     | otherwise = -1
 
--- The main game loop. Takes a boolean indicating whether this is "debug" mode or not.
--- If it is debug, print out the AI board at the beginning of the game.
+-- The main game loop. The user sets up their board, then the AI sets up
+-- their board, and then gameplay begins with the human player taking the
+-- first turn.
 main :: IO ()
 main = 
     do
         putStrLn("Welcome to Battleship! Let's get started...")
         putStrLn("First we'll get your board setup.")
         putStrLn("When inputting coordinates, please use the form A1, J9, etc.")
-        playerboard <- setup
+        playerboard <- setupPlayersBoard
         printboard playerboard True
         aiboard <- getAiBoard
         putStrLn("Would you like to see the AI board (for debugging purposes? (Input \"Y\" if so)")
@@ -70,6 +72,10 @@ main =
                 putStrLn("Not in debug mode.")
                 play playerboard aiboard True 
 
+-- Plays one turn of the game. If playerturn is true, it is the human player's turn.
+-- Else, it is the AI's turn. If after the target is selected and hit the game is
+-- in the end condition (i.e. all ships have been hit), the game is over and the
+-- player whose turn it is wins.
 play :: [[Int]] -> [[Int]] -> Bool -> IO ()
 play playerboard aiboard playerturn =
     do
@@ -101,6 +107,8 @@ play playerboard aiboard playerturn =
                 play newplayerboard aiboard True
                 
 -- Guides the player through selecting a valid target square for their turn.
+-- If the user inputs an invalid coordinate or selects a coordinate they have
+-- already hit in past turns, recursively call getTarget to try again.
 getTarget :: [[Int]] -> IO (Int, Int)
 getTarget aiboard = 
     do
@@ -109,7 +117,7 @@ getTarget aiboard =
         if (isValidCoordinate target)
             then do 
                 let coordinate = createCoordinate target
-                if (validtargetSquare aiboard coordinate) 
+                if (isUnhitTarget aiboard coordinate) 
                     then return coordinate 
                     else do 
                         putStrLn("You have already hit this coordinate. Please try again")
@@ -122,7 +130,7 @@ getTarget aiboard =
 -- selecting the coordinate target.
 -- if the target is an unhit ship, changes the value to be a hit ship.
 -- if the target is an empty square, changes the value to be a miss.
--- Precondition: the given target returns true in validTargetSquare
+-- Precondition: the given target returns true in isUnhitTarget
 hitTarget :: [[Int]] -> (Int, Int) -> IO [[Int]]
 hitTarget board target = 
     do 
@@ -142,25 +150,18 @@ hitTarget board target =
                 putStrLn("Miss...")
                 return (updateBoardSquare board target 1)
                 
--- Returns True if the ship the board contains no unhit squares for the shipType given
+-- Returns True if the board contains no unhit squares for the shipType given, otherwise False.
 newShipSunk :: [[Int]] -> Int -> Bool
 newShipSunk board shipType = (foldr (\x count -> length (filter (==shipType) x) + count) 0 board) == 0
 
--- Returns true if all the ships on the given board are hit, else false.
+-- Returns true if all the ships on the given board are hit (ie end of the game), else false.
 allShipsHit :: [[Int]] -> Bool
 allShipsHit board = 
-    (foldr (\x count -> length (filter (==3) x) + count) 0 board) == 17
-
--- Checks whether the given coordinates are a valid target for a player's turn.
--- That is, returns true if the coordinate is empty or an unhit ship, and returns
--- false if the coordinate has already been hit (i.e. is a hit ship or a miss)
-validtargetSquare :: [[Int]] -> (Int, Int) -> Bool
-validtargetSquare aiboard coordinate = getValueOfCoordinate aiboard coordinate /= hit_square && getValueOfCoordinate aiboard coordinate /= miss_square
+    (foldr (\x count -> length (filter (==hit_square) x) + count) 0 board) == 17
 
 -- Checks whether the given coordinate contains an unhit ship
 unhitShipAtSquare :: [[Int]] -> (Int, Int) -> Bool
-unhitShipAtSquare aiboard coordinate = getValueOfCoordinate aiboard coordinate `elem` [unhit_battleship_square, unhit_carrier_square, unhit_cruiser_square,
-                                                                                        unhit_destroyer_square, unhit_submarine_square]
+unhitShipAtSquare aiboard coordinate = getValueOfCoordinate aiboard coordinate `elem` unhitShipSquares
 
 ------------------------------ AI STUFF -------------------------------
 
@@ -177,26 +178,35 @@ getAITarget playerboard row
             return (if (length targets > 0) then (head targets) else next)
 
 -- Gets a list of suitable targets given a list of known hit locations
+-- Suitable targets are those that are valid board coordinates, have not yet been hit,
+-- and are directly to the left or right OR directly above or below a square already hit.
 getTargetFromHits :: [[Int]] -> [Int] -> Int -> [(Int, Int)]
-getTargetFromHits playerboard hitIndices row
+getTargetFromHits board hitIndices row
     | length hitIndices == 0 = []
-    | otherwise =  [(i, j) | i <- [row-1, row, row+1], col <- hitIndices, j <- [col-1, col, col+1], isValidCoordinateNum (i, j),
-                            ((playerboard !! i) !! j) /= 1 && ((playerboard !! i) !! j) /= 3,
+    | otherwise =  [(i, j) | i <- [row-1, row, row+1], col <- hitIndices, j <- [col-1, col, col+1],
+                            isValidCoordinateNum (i, j),
+                            isUnhitTarget board (i,j),
                             (i == row-1 && j == col) || (i == row+1 && j == col) || (i == row)]
             
 -- Gets a random valid target (i.e. not already a hit/miss location)
 getRandomTarget :: [[Int]] -> IO (Int, Int)
-getRandomTarget playerboard = 
+getRandomTarget board = 
     do
         g <- newStdGen
-        return (head [(i, j) | i <- randomRs (0, 9) g, j <- randomRs (0, 9) g,
-                                ((playerboard !! i) !! j) /= 1, ((playerboard !! i) !! j) /= 3])
+        return (head [(i, j) | i <- randomRs (0, 9) g, j <- randomRs (0, 9) g, isUnhitTarget board (i,j)])
 
----------------------------- BOARD SETUP ------------------------------
+-- Returns true if the given coordinate has not yet been selected as a target to hit
+-- on the given gameboard (i.e. is not a miss or a hit square)
+isUnhitTarget :: [[Int]] -> (Int, Int) -> Bool
+isUnhitTarget board (i,j) = 
+    val /= miss_square && val /= hit_square
+    where val = getValueOfCoordinate board (i,j)
+
+---------------------------- PLAYER'S BOARD SETUP ------------------------------
 
 -- Guides the player through placing their ships on their board.
-setup :: IO [[Int]]
-setup = 
+setupPlayersBoard :: IO [[Int]]
+setupPlayersBoard = 
     do
         board1 <- placeShip 5 carrier_string (replicate 10 (replicate 10 0))
         printboard board1 True
@@ -255,8 +265,8 @@ updateRowWithShip board row start num name
     | num == 0 = board
     | otherwise = updateRowWithShip (updateBoardSquare board (row, start) (getShipNumFromName name)) row (start + 1) (num - 1) name
 
--- Updates the spaces of the board in the given column col to contain a ship of
--- size num that starts at row start
+-- Updates the spaces of the board in the given column col to contain a ship of type name
+-- and size num that starts at row start
 updateColWithShip :: [[Int]] -> Int -> Int -> Int -> [Char] -> [[Int]]
 updateColWithShip board col start num name
     | num == 0 = board
@@ -264,14 +274,15 @@ updateColWithShip board col start num name
 
 -- Update square (x,y) on the board to newval
 updateBoardSquare :: [[Int]] -> (Int, Int) -> Int -> [[Int]]
-updateBoardSquare board (row, col) newval = [[if i == row && j == col then newval else ((board !! i) !! j) | j <- [0..9]] | 
-    i <- [0..9]]
+updateBoardSquare board (row, col) newval =
+    [[if i == row && j == col then newval else getValueOfCoordinate board (i,j) | j <- [0..9]] | i <- [0..9]]
 
 -- Checks if the coordinate given is a valid board coordinate.
 isValidCoordinate :: [Char] -> Bool
 isValidCoordinate [letter, num] = ((toUpper letter) `elem` validLetters) && (num `elem` validNumbers)
 isValidCoordinate lst = False
 
+-- Returns true if the given coordinate in the form (row,col) is on the board (ie valid), else false.
 isValidCoordinateNum :: (Int, Int) -> Bool
 isValidCoordinateNum (row, col) = row >= 0 && row <= 9 && col >= 0 && col <= 9
 
@@ -283,11 +294,13 @@ isValidShipPlacement (sRow, sCol) (eRow, eCol) size board
     | sRow ==  eRow = checkDifference sCol eCol (size - 1) && isRowFreeBetween sCol eCol board sRow
     | otherwise = False
 
--- Return a list of valid valid (start,end) coordinates, given a start placement
+-- Return a list of valid (row,col) coordinates that are valid end coordinates for a ship placement,
+-- using the given start coordinate.
+-- The returned list of coordinates are those that are on the board and will not cause overlap with a
+-- ship that has already been placed on the baord.
 getValidShipPlacements :: (Int, Int) -> Int -> [[Int]] -> [(Int, Int)]
 getValidShipPlacements start size board = 
     filter ( \ end -> isValidShipPlacement start end size board) (getValidCoordinatesXAwayFromStart start size)
-
 
 -- Get a list of coordinates which are <size> away from the start coordinate, which are on the board
 getValidCoordinatesXAwayFromStart :: (Int, Int) -> Int -> [(Int, Int)]
@@ -295,13 +308,15 @@ getValidCoordinatesXAwayFromStart (sRow, sCol) size =
     let offset = size - 1
     in filter (\ end -> isValidCoordinateNum end) [(sRow, sCol + offset), (sRow, sCol - offset), (sRow + offset, sCol), (sRow - offset, sCol)]
 
--- Get a list of coordinates which are <size> sqaures away from <start> that would be valid user choices for the
+-- Get a list of coordinates which are <size> sqaures away from <start> that would be valid user input for the
 -- corresponding end coordinate
 getValidCoordinatesXAwayFromStartUserFriendly :: (Int, Int) -> Int -> [[Int]] -> [[Char]]
 getValidCoordinatesXAwayFromStartUserFriendly start size board =
     map convertNumCoordinateToUserCoordinate coordinates
     where coordinates = getValidShipPlacements start size board
 
+-- Takes in a coordinate in the form (row,col) where row and col are Ints, and returns a board
+-- coordinate in user-friendly format (e.g. (0,0) = "A0"; (0,1) = "B0" etc.)
 convertNumCoordinateToUserCoordinate :: (Int, Int) -> [Char]
 convertNumCoordinateToUserCoordinate (row, col) = 
     [(validLetters !! col)]++(show row)
@@ -399,7 +414,7 @@ getAiBoard =
         board <- placeOneShip 2 board destroyer_string
         return board
 
--- Randomly place one ship of size size onto the board
+-- Randomly place one ship of size <size> onto the board
 placeOneShip :: Int -> [[Int]] -> [Char] -> IO [[Int]]
 placeOneShip size board name =
     do 
@@ -429,7 +444,7 @@ printboard board ownBoard =
         aligns = []
         formattedboard = boardtotext board ownBoard
 
-----------  HELPER METHODS ------------
+---------- BOARD PRINTING HELPER METHODS ------------
 
 -- Given a 2D array of integers representing a board, convert to a 2D array of text characters 
 boardtotext :: [[Int]] -> Bool -> [[T.Text]]
