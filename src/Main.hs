@@ -181,7 +181,8 @@ getTargetFromHits :: [[Int]] -> [Int] -> Int -> [(Int, Int)]
 getTargetFromHits playerboard hitIndices row
     | length hitIndices == 0 = []
     | otherwise =  [(i, j) | i <- [row-1, row, row+1], col <- hitIndices, j <- [col-1, col, col+1], isValidCoordinateNum (i, j),
-                            ((playerboard !! i) !! j) /= 1 && ((playerboard !! i) !! j) /= 3]
+                            ((playerboard !! i) !! j) /= 1 && ((playerboard !! i) !! j) /= 3,
+                            (i == row-1 && j == col) || (i == row+1 && j == col) || (i == row)]
             
 -- Gets a random valid target (i.e. not already a hit/miss location)
 getRandomTarget :: [[Int]] -> IO (Int, Int)
