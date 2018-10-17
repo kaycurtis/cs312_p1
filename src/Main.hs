@@ -394,17 +394,6 @@ convertLetterCoordinateToNum letter
 
 ---------------------------- AI BOARD --------------------------------------------
 
--- board1 = [[0,2,0,0,0,0,0,0,0,0],
---           [0,2,0,0,0,0,0,0,0,0],
---           [0,2,0,0,0,0,0,0,0,0],
---           [0,0,0,0,2,2,2,0,0,0],
---           [0,0,0,0,0,0,0,0,0,0],
---           [0,0,2,2,2,2,0,0,0,0],
---           [0,0,0,0,0,0,0,0,0,0],
---           [0,0,0,0,2,2,2,2,2,0],
---           [0,2,0,0,0,0,0,0,0,0],
---           [0,2,0,0,0,0,0,0,0,0]]
-
 -- Randomly generate a board for the AI
 getAiBoard :: IO [[Int]]
 getAiBoard = 
@@ -418,6 +407,8 @@ getAiBoard =
         return board
 
 -- Randomly place one ship of size <size> onto the board
+-- selects a random coordinate, gets a list of valid ship placements starting at that coordinate (if none, selects another random coordinate),
+-- then randomly selects from those placements
 placeOneShip :: Int -> [[Int]] -> [Char] -> IO [[Int]]
 placeOneShip size board name =
     do 
@@ -434,7 +425,7 @@ placeOneShip size board name =
             let (index, g) = randomR (0, optionsLength - 1) generator
             return (updateBoardWithShip start (options !! index) board size name)
 
----------------------------- BOARD FORMATTING STUFF ------------------------------
+---------------------------- BOARD PRINTING ------------------------------
 
 -- Displays a formatted board to the user. Only displays unhit ships if it is the user's own board. 
 printboard :: [[Int]] -> Bool -> IO ()
