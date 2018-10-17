@@ -11,10 +11,8 @@ import System.Random
 -- Boards are 10x10 2D arrays with integers in the range [0,3], where:
 -- 0 means the square is empty and has not been hit
 -- 1 means a miss 
--- 2 means an unhit ship 
+-- 11- 15 means an unhit ship
 -- 3 means a hit ship 
--- playerboard = replicate 10 (replicate 10 0)
--- aiboard = replicate 10 (replicate 10 0)
 
 empty_square = 0
 miss_square = 1
@@ -50,16 +48,27 @@ convertLetterCoordinateToNum letter
     | letter == 'J' = 9
     | otherwise = -1
 
+-- The main game loop. Takes a boolean indicating whether this is "debug" mode or not.
+-- If it is debug, print out the AI board at the beginning of the game.
 main :: IO ()
 main = 
     do
         putStrLn("Welcome to Battleship! Let's get started...")
         putStrLn("First we'll get your board setup.")
         putStrLn("When inputting coordinates, please use the form A1, J9, etc.")
-        playerboard <- setup 
+        playerboard <- setup
         printboard playerboard True
         aiboard <- getAiBoard
-        play playerboard aiboard True 
+        putStrLn("Would you like to see the AI board (for debugging purposes? (Input \"Y\" if so)")
+        debug <- getLine
+        if ((debug == "Yes") || (debug == "yes") || (debug == "Y") || (debug == "y"))
+            then do
+                putStrLn("Okay, here is the AI's board:")
+                printboard aiboard True
+                play playerboard aiboard True
+            else do
+                putStrLn("Not in debug mode.")
+                play playerboard aiboard True 
 
 play :: [[Int]] -> [[Int]] -> Bool -> IO ()
 play playerboard aiboard playerturn =
@@ -79,6 +88,7 @@ play playerboard aiboard playerturn =
             _ <- getLine
             
             aitarget <- (getAITarget playerboard 0)
+            putStrLn("The AI has selected the target "++(convertNumCoordinateToUserCoordinate aitarget))
             newplayerboard <- hitTarget playerboard aitarget
             
             putStrLn("Here's the board the AI sees after it takes its turn:")
@@ -207,20 +217,24 @@ placeShip size name board =
         if (isValidCoordinate start)
             then do
                 let startCoordinate = createCoordinate start
-                putStrLn("Give an end coordinate that is " ++(show (size - 1))++ " spaces away vertically or horizontally from " ++start++ ".")
-                end <- getLine
-                if (isValidCoordinate end) --first check if it's on the board
+                if (isFreeSpace board startCoordinate)
                     then do
-                        let endCoordinate = createCoordinate end
-                        if (isValidShipPlacement startCoordinate endCoordinate size board)
+                        let validEndCoordinates = getValidCoordinatesXAwayFromStartUserFriendly startCoordinate size board
+                        putStrLn("Give an end coordinate that is " ++(show (size - 1))++ " spaces away vertically or horizontally from " ++start++ ".")
+                        putStrLn("The valid options are: "++(show validEndCoordinates))
+                        end <- getLine
+                        if ((toUpperUserCoordinate end) `elem` validEndCoordinates)
                             then do
+                                let endCoordinate = createCoordinate end
                                 let newBoard = updateBoardWithShip startCoordinate endCoordinate board size name
                                 return newBoard
                             else do
-                                putStrLn("Invalid placement. Please try again, making sure your ships do not overlap and span the correct number of spaces.")
+                                putStrLn("Invalid placement. Either the given end coordinate is improperly formatted, it was an incorrect number of spaces away, or it overlapped another ship already on the board.")
+                                putStrLn("Please try again.")
                                 placeShip size name board
                     else do
-                        putStrLn("That is an invalid coordinate. Please try again!")
+                        putStrLn("Invalid placement. The coordinate given is for a square already containing a ship.")
+                        putStrLn("Please try again.")
                         placeShip size name board
             else do
                 putStrLn("That is an invalid coordinate. Please try again.")
@@ -268,16 +282,28 @@ isValidShipPlacement (sRow, sCol) (eRow, eCol) size board
     | sRow ==  eRow = checkDifference sCol eCol (size - 1) && isRowFreeBetween sCol eCol board sRow
     | otherwise = False
 
--- Return a list of valid end placements, given a start placement
+-- Return a list of valid valid (start,end) coordinates, given a start placement
 getValidShipPlacements :: (Int, Int) -> Int -> [[Int]] -> [(Int, Int)]
 getValidShipPlacements start size board = 
     filter ( \ end -> isValidShipPlacement start end size board) (getValidCoordinatesXAwayFromStart start size)
+
 
 -- Get a list of coordinates which are <size> away from the start coordinate, which are on the board
 getValidCoordinatesXAwayFromStart :: (Int, Int) -> Int -> [(Int, Int)]
 getValidCoordinatesXAwayFromStart (sRow, sCol) size =
     let offset = size - 1
     in filter (\ end -> isValidCoordinateNum end) [(sRow, sCol + offset), (sRow, sCol - offset), (sRow + offset, sCol), (sRow - offset, sCol)]
+
+-- Get a list of coordinates which are <size> sqaures away from <start> that would be valid user choices for the
+-- corresponding end coordinate
+getValidCoordinatesXAwayFromStartUserFriendly :: (Int, Int) -> Int -> [[Int]] -> [[Char]]
+getValidCoordinatesXAwayFromStartUserFriendly start size board =
+    map convertNumCoordinateToUserCoordinate coordinates
+    where coordinates = getValidShipPlacements start size board
+
+convertNumCoordinateToUserCoordinate :: (Int, Int) -> [Char]
+convertNumCoordinateToUserCoordinate (row, col) = 
+    [(validLetters !! col)]++(show row)
 
 -- Checks if the spaces between (and including) columns start and end in the given row
 -- are free (i.e. not occupied by a ship).
@@ -318,6 +344,12 @@ toUpper :: Char -> Char
 toUpper x
     | x `elem` validLetters = x
     | otherwise = toEnum( fromEnum x - fromEnum 'a' + fromEnum 'A')
+
+-- Converts the letter in the user input of a coordinate that is validly formatted to uppercase.
+toUpperUserCoordinate :: [Char] -> [Char]
+toUpperUserCoordinate [letter,number] =
+    [toUpper letter, number]
+toUpperUserCoordinate lst = lst
 
 -- Converts a character of a digit to an Int
 charToNum :: Char -> Int
@@ -364,8 +396,6 @@ getAiBoard =
         board <- placeOneShip 3 board cruiser_string
         board <- placeOneShip 3 board submarine_string
         board <- placeOneShip 2 board destroyer_string
-        putStrLn "Printing the value of the AI board for debugging purposes, delete me!"
-        printboard board True -- TEMP, for DEBUGGING ONLY
         return board
 
 -- Randomly place one ship of size size onto the board
