@@ -65,11 +65,11 @@ play playerboard aiboard playerturn =
     do
         if playerturn 
             then do
+                promptToContinue("It's your turn. Press a key to see your opponent's board.")
+                printboard aiboard False
                 playertarget <- getTarget aiboard
                 promptToContinue("Taking aim... Press a key to continue");
                 newaiboard <- hitTarget aiboard playertarget
-                promptToContinue("Press a key to see the AI's board")
-                printboard newaiboard False
                 if (allShipsHit newaiboard)
                     then do 
                         putStrLn("Congrats, you win!!")
