@@ -65,23 +65,22 @@ play playerboard aiboard playerturn =
     do
         if playerturn 
             then do
+                promptToContinue("It's your turn. Press a key to see your opponent's board.")
+                printboard aiboard False
                 playertarget <- getTarget aiboard
+                promptToContinue("Taking aim... Press a key to continue");
                 newaiboard <- hitTarget aiboard playertarget
-                printboard newaiboard False
                 if (allShipsHit newaiboard)
                     then do 
                         putStrLn("Congrats, you win!!")
                 else do
                     play playerboard newaiboard False
         else do
-            putStrLn("Press a key to have the AI take its turn")
-            _ <- getLine
-            
+            promptToContinue("Press a key to have the AI take its turn")
             aitarget <- (getAITarget playerboard 0)
-            putStrLn("The AI has selected the target "++(convertNumCoordinateToUserCoordinate aitarget))
+            promptToContinue("The AI has selected the target "++(convertNumCoordinateToUserCoordinate aitarget)++". Press a key to continue.")
             newplayerboard <- hitTarget playerboard aitarget
-            
-            putStrLn("Here's the board the AI sees after it takes its turn:")
+            promptToContinue("Press a key to see your board after the AI's turn")
             printboard newplayerboard True
             
             if (allShipsHit newplayerboard)
@@ -89,6 +88,14 @@ play playerboard aiboard playerturn =
                     putStrLn("Sorry, you lose!")
             else do
                 play newplayerboard aiboard True
+
+-- Print the given text and then require the player to press a key
+promptToContinue :: [Char] -> IO String
+promptToContinue str =
+    do
+        putStrLn(str)
+        x <- getLine
+        return x
                 
 -- Guides the player through selecting a valid target square for their turn.
 -- If the user inputs an invalid coordinate or selects a coordinate they have
@@ -131,7 +138,7 @@ hitTarget board target =
                         return (newboard)
                 
             else do
-                putStrLn("Miss...")
+                putStrLn("It's a miss...")
                 return (updateBoardSquare board target 1)
                 
 -- Returns True if the board contains no unhit squares for the shipType given, otherwise False.
@@ -394,17 +401,6 @@ convertLetterCoordinateToNum letter
 
 ---------------------------- AI BOARD --------------------------------------------
 
--- board1 = [[0,2,0,0,0,0,0,0,0,0],
---           [0,2,0,0,0,0,0,0,0,0],
---           [0,2,0,0,0,0,0,0,0,0],
---           [0,0,0,0,2,2,2,0,0,0],
---           [0,0,0,0,0,0,0,0,0,0],
---           [0,0,2,2,2,2,0,0,0,0],
---           [0,0,0,0,0,0,0,0,0,0],
---           [0,0,0,0,2,2,2,2,2,0],
---           [0,2,0,0,0,0,0,0,0,0],
---           [0,2,0,0,0,0,0,0,0,0]]
-
 -- Randomly generate a board for the AI
 getAiBoard :: IO [[Int]]
 getAiBoard = 
@@ -418,6 +414,8 @@ getAiBoard =
         return board
 
 -- Randomly place one ship of size <size> onto the board
+-- selects a random coordinate, gets a list of valid ship placements starting at that coordinate (if none, selects another random coordinate),
+-- then randomly selects from those placements
 placeOneShip :: Int -> [[Int]] -> [Char] -> IO [[Int]]
 placeOneShip size board name =
     do 
@@ -434,7 +432,7 @@ placeOneShip size board name =
             let (index, g) = randomR (0, optionsLength - 1) generator
             return (updateBoardWithShip start (options !! index) board size name)
 
----------------------------- BOARD FORMATTING STUFF ------------------------------
+---------------------------- BOARD PRINTING ------------------------------
 
 -- Displays a formatted board to the user. Only displays unhit ships if it is the user's own board. 
 printboard :: [[Int]] -> Bool -> IO ()
